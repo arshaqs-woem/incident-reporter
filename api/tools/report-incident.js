@@ -16,6 +16,7 @@ const ESCALATION_REASON = {
 };
 
 module.exports = async function(req, res) {
+  const start = Date.now();
   const recentCall = await db.query(
     `SELECT call_id FROM call_logs WHERE call_status = 'in_progress' OR call_end_time > NOW() - INTERVAL '5 minutes' ORDER BY created_at DESC LIMIT 1`
   );
@@ -94,12 +95,20 @@ module.exports = async function(req, res) {
       tasks.push(db.createFollowUp({ incidentId, callId, incidentType: type, severity, assignedTo: ASSIGNED_TO[type] || 'HR' }).catch(() => {}));
     }
 
+    const output = { incident_id: incidentId, status: 'logged' };
+
+    tasks.push(
+      db.saveIntent({ callId, intent: `incident_report_${type}`, confidence: 1.0, entities: { severity, type, injured_reported: injured !== 'none' && injured !== 'None' } }).catch(() => {}),
+      db.saveToolCall({ callId, toolName: 'report_incident', inputParams: req.body, outputResult: output, executionTimeMs: Date.now() - start, success: true }).catch(() => {})
+    );
+
     await Promise.all(tasks);
 
-    return res.json({ incident_id: incidentId, status: 'logged' });
+    return res.json(output);
 
   } catch (err) {
     console.error('[TOOL] report_incident error:', err.message);
+    db.saveToolCall({ callId, toolName: 'report_incident', inputParams: req.body, outputResult: { error: err.message }, executionTimeMs: Date.now() - start, success: false }).catch(() => {});
     return res.status(500).json({ error: err.message });
   }
 };

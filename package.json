@@ -1,0 +1,15 @@
+{
+  "name": "incident-reporter",
+  "version": "1.0.0",
+  "description": "Workplace Incident Reporting Voice Agent — Ultravox + Plivo + Vercel",
+  "scripts": {
+    "setup-db": "node scripts/setup-db.js",
+    "start": "node -e \"console.log('Deploy with: vercel')\""
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "pg": "^8.11.0",
+    "plivo": "^4.50.0",
+    "dotenv": "^16.3.0"
+  }
+}

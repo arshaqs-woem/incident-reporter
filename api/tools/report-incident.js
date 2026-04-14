@@ -4,10 +4,7 @@ const { buildHrMessage, buildManagerMessage } = require('../../lib/messages');
 
 module.exports = async function(req, res) {
   const start = Date.now();
-  const recentCall = await db.query(
-    `SELECT call_id FROM call_logs WHERE call_status = 'in_progress' OR call_end_time > NOW() - INTERVAL '5 minutes' ORDER BY created_at DESC LIMIT 1`
-  );
-  const callId = recentCall.rows[0]?.call_id || 'unknown';
+  const callId = req.query.callId || 'unknown';
   const { what, when_it_happened, where_it_happened, injured, witnesses, consent_manager, severity, incident_type, notify_manager, anonymous, reporter_name } = req.body;
 
   const type = (incident_type || 'maintenance').toLowerCase();

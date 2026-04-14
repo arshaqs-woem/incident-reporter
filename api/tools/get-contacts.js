@@ -22,10 +22,7 @@ module.exports = async function(req, res) {
     note: 'Notifications will be sent automatically when the incident is logged.'
   };
 
-  const recentCall = await db.query(
-    `SELECT call_id FROM call_logs WHERE call_status = 'in_progress' OR call_end_time > NOW() - INTERVAL '5 minutes' ORDER BY created_at DESC LIMIT 1`
-  ).catch(() => ({ rows: [] }));
-  const callId = recentCall.rows[0]?.call_id || 'unknown';
+  const callId = req.query.callId || 'unknown';
 
   db.saveToolCall({ callId, toolName: 'get_department_contacts', inputParams: req.body, outputResult: output, executionTimeMs: Date.now() - start, success: true }).catch(() => {});
 

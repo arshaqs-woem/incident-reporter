@@ -102,9 +102,10 @@ module.exports = async function(req, res) {
       db.saveToolCall({ callId, toolName: 'report_incident', inputParams: req.body, outputResult: output, executionTimeMs: Date.now() - start, success: true }).catch(() => {})
     );
 
-    await Promise.all(tasks);
-
-    return res.json(output);
+    // Respond immediately so agent can say goodbye without waiting — fire tasks after
+    res.json(output);
+    Promise.all(tasks).catch(() => {});
+    return;
 
   } catch (err) {
     console.error('[TOOL] report_incident error:', err.message);

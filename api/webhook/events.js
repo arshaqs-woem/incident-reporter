@@ -20,9 +20,10 @@ async function fetchAndStoreTranscript(callId, uvCallId) {
     }
   }
   if (!messages) { console.error('[TRANSCRIPT] not found on any key'); return; }
-  for (const msg of messages) {
+  const voiceMessages = messages.filter(m => m.medium === 'MESSAGE_MEDIUM_VOICE');
+  for (const msg of voiceMessages) {
     const speaker = msg.role === 'MESSAGE_ROLE_AGENT' || msg.role === 'agent' ? 'agent' : 'user';
-    const text = msg.text || msg.content || '';
+    const text = (msg.text || msg.content || '').trim();
     if (text) await db.saveTranscript({ callId, speaker, message: text });
   }
   console.log(`[TRANSCRIPT] ${callId} — ${messages.length} messages stored`);

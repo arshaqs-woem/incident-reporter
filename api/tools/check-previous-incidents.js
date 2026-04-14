@@ -5,7 +5,10 @@ module.exports = async function(req, res) {
   const { location, incident_type } = req.body;
 
   try {
-    const callId = req.query.callId || 'unknown';
+    const recentCall = await db.query(
+      `SELECT call_id FROM call_logs WHERE call_status = 'in_progress' ORDER BY call_start_time DESC LIMIT 1`
+    );
+    const callId = recentCall.rows[0]?.call_id || 'unknown';
 
     // Look up prior incidents at the same location or of the same type in last 30 days
     const params = [];

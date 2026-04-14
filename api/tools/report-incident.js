@@ -4,7 +4,10 @@ const { buildHrMessage, buildManagerMessage } = require('../../lib/messages');
 
 module.exports = async function(req, res) {
   const start = Date.now();
-  const callId = req.query.callId || 'unknown';
+  const recentCall = await db.query(
+    `SELECT call_id FROM call_logs WHERE call_status = 'in_progress' ORDER BY call_start_time DESC LIMIT 1`
+  );
+  const callId = recentCall.rows[0]?.call_id || 'unknown';
   const { what, when_it_happened, where_it_happened, injured, witnesses, consent_manager, severity, incident_type, notify_manager, anonymous, reporter_name } = req.body;
 
   const type = (incident_type || 'maintenance').toLowerCase();
@@ -14,11 +17,6 @@ module.exports = async function(req, res) {
   try {
     const incidentType = incident_type || 'maintenance';
     const { incidentId, isDuplicate } = await db.withTransaction(async (client) => {
-      await client.query(
-        `SELECT pg_advisory_xact_lock(hashtext($1))`,
-        [`incident:${callId}:${incidentType}`]
-      );
-
       const existing = await client.query(
         `SELECT id FROM incidents
           WHERE call_id = $1 AND incident_type = $2 AND created_at > NOW() - INTERVAL '3 minutes'

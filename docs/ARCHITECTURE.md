@@ -45,9 +45,11 @@ Hosted Postgres. Stores call logs, incidents, notifications, escalations, follow
 5. Agent collects incident details, optionally calls `check_previous_incidents`
 6. Agent calls `report_incident` tool → POST to `/api/tools/report-incident`
 7. `report-incident.js`:
-   - Deduplication check (advisory lock + 3-minute window)
-   - INSERT incident row
-   - Parallel: SMS to HR + (optional) SMS to manager + escalation row + follow-up row + tool_call log + intent log
+   - Looks up the most recent in-progress call
+   - Deduplication check (3-minute window by `call_id + incident_type`)
+   - INSERT incident row inside a transaction
+   - Writes follow-up and escalation fields inside the same transaction
+   - Responds quickly to Ultravox, then sends SMS and lower-priority logs
    - Returns `{ incident_id, status }`
 8. Agent says closing line, calls built-in `hangUp` tool
 9. Plivo POSTs hangup event to `/api/webhook/events`
@@ -72,11 +74,14 @@ Hosted Postgres. Stores call logs, incidents, notifications, escalations, follow
 **Ultravox does not send call ID in tool headers**
 Ultravox HTTP tools send `x-ultravox-tool-invocation-id` (per-invocation), not the Plivo call ID. `report-incident.js` works around this by querying the most recent in-progress call from `call_logs`. Works correctly for sequential calls.
 
-**All side effects run before response**
-Vercel kills execution after `res.json()`. SMS, DB writes, escalations, and follow-ups all run in parallel via `Promise.all()` and are awaited before responding.
+**Critical writes happen before the tool exits**
+The incident row, follow-up fields, and escalation fields are written before the tool returns. This keeps the core record intact even if non-critical background work is delayed.
 
-**Deduplication via advisory lock**
-If Ultravox retries the tool call (e.g. due to slow response), a PostgreSQL advisory lock prevents two concurrent inserts for the same call/incident-type pair within a 3-minute window.
+**Deduplication via recent-call + 3-minute window**
+If Ultravox retries the tool call, the tool checks for an existing incident with the same `call_id` and `incident_type` created within the last 3 minutes and returns the existing incident instead of inserting a second one.
 
 **Caller anonymization**
 `caller_number` is always stored as `null`. The agent never asks for the caller's identity unless they volunteer it.
+
+**Transcript storage**
+Transcripts are stored turn-by-turn rather than as one stitched blob. This makes the raw data better for debugging and analytics, while the summary endpoint provides the cleaner call-level view.

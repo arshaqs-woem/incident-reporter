@@ -10,6 +10,12 @@ Built with Ultravox (voice AI), Plivo (telephony + SMS), Vercel (serverless), an
 
 > _Link to be added after recording_
 
+Suggested demo flow:
+- Show one clean call from start to finish
+- Show the incident row, transcript rows, summary, tool call, and call log in the database
+- Show `/api/health`, `/api/calls`, and `/api/incidents`
+- Show the Vercel deployment and deployed URL
+
 ---
 
 ## Problem Statement
@@ -57,7 +63,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for full design decisions.
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/your-username/incident-reporter
+git clone https://github.com/arshaqs-woem/incident-reporter
 cd incident-reporter
 npm install
 ```
@@ -134,12 +140,19 @@ See [docs/API.md](docs/API.md) for full request/response documentation.
 
 > _To be added after demo calls_
 
+Recommended screenshots:
+- `call_logs` showing completed and abandoned calls
+- `incidents` showing type, severity, anonymity, and follow-up fields
+- `transcripts` showing user + agent turns for one call
+- `tool_calls` and `call_summaries` for the same call
+
 ---
 
 ## Known Limitations
 
 - **Call-to-incident linkage** depends on "most recent active call" — works for sequential demo use but would need a proper fix for concurrent production traffic (Ultravox does not send call ID in HTTP tool headers)
 - **Transcripts** are fetched from Ultravox after hangup — there is a short delay before they appear in the DB
+- **Transcript storage is raw turn-by-turn data** — good for auditing and analytics, but less readable than a single stitched conversation view
 - **Caller anonymization** is implicit — phone numbers are never stored anywhere in the system
 
 ---

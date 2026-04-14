@@ -18,7 +18,7 @@ Creates an Ultravox session and returns Plivo XML to stream audio.
 ### POST /api/webhook/events
 Plivo event webhook. Called on call hangup.
 
-Records call end time, fetches transcript from Ultravox API, generates call summary. Marks call as `abandoned` if no incident was logged during the call.
+Records call end time, fetches transcript from Ultravox API, generates call summary, and marks the call as `abandoned` if no incident was logged during the call.
 
 **Response:** `{ ok: true }`
 
@@ -41,6 +41,8 @@ Main tool. Logs the incident and sends SMS notifications in one step.
 | `notify_manager` | boolean | yes | Whether to send SMS to manager |
 | `severity` | string | yes | `low`, `medium`, `high`, `critical` |
 | `incident_type` | string | yes | `maintenance`, `safety`, `interpersonal`, `security` |
+| `anonymous` | boolean | yes | Whether the caller chose to remain anonymous |
+| `reporter_name` | string | no | Caller name, only if they volunteered it |
 
 **Response:** `{ incident_id: number, status: "logged" | "already_logged" }`
 
@@ -73,7 +75,7 @@ List all calls, paginated.
 ### GET /api/calls/:id
 Get details for a specific call.
 
-**Response:** Call log object with linked incident if present.
+**Response:** Call log object with linked incident, transcript rows, and tool-call history if present.
 
 ---
 

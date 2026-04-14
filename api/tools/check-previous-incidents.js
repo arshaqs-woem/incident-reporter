@@ -51,6 +51,6 @@ module.exports = async function(req, res) {
 
   } catch (err) {
     console.error('[TOOL] check_previous_incidents error:', err.message);
-    return res.status(500).json({ error: err.message });
+    return res.json({ count: 0, recent_incidents: [], repeated: false, error: err.message });
   }
 };

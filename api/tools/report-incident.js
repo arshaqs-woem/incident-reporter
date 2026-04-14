@@ -95,6 +95,6 @@ module.exports = async function(req, res) {
   } catch (err) {
     console.error('[TOOL] report_incident error:', err.message);
     db.saveToolCall({ callId, toolName: 'report_incident', inputParams: req.body, outputResult: { error: err.message }, executionTimeMs: Date.now() - start, success: false }).catch(() => {});
-    return res.status(500).json({ error: err.message });
+    return res.json({ status: 'error', error: err.message });
   }
 };

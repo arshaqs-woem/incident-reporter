@@ -2,19 +2,6 @@ const db = require('../../lib/db');
 const { sendSms } = require('../../lib/plivo');
 const { buildHrMessage, buildManagerMessage } = require('../../lib/messages');
 
-const ASSIGNED_TO = {
-  maintenance:   'Facilities Team',
-  safety:        'Safety Officer',
-  interpersonal: 'HR',
-  security:      'Security / IT'
-};
-
-const ESCALATION_REASON = {
-  safety:        'Physical injury or hazard reported — requires immediate safety review',
-  interpersonal: 'Workplace conflict or harassment — requires confidential HR review',
-  security:      'Security breach or unauthorised access — requires urgent investigation'
-};
-
 module.exports = async function(req, res) {
   const start = Date.now();
   const recentCall = await db.query(
@@ -30,20 +17,15 @@ module.exports = async function(req, res) {
   try {
     const incidentType = incident_type || 'maintenance';
     const { incidentId, isDuplicate } = await db.withTransaction(async (client) => {
-      // Serialize concurrent tool calls for the same call/type pair.
       await client.query(
         `SELECT pg_advisory_xact_lock(hashtext($1))`,
         [`incident:${callId}:${incidentType}`]
       );
 
       const existing = await client.query(
-        `SELECT id
-           FROM incidents
-          WHERE call_id = $1
-            AND incident_type = $2
-            AND created_at > NOW() - INTERVAL '3 minutes'
-          ORDER BY id DESC
-          LIMIT 1`,
+        `SELECT id FROM incidents
+          WHERE call_id = $1 AND incident_type = $2 AND created_at > NOW() - INTERVAL '3 minutes'
+          ORDER BY id DESC LIMIT 1`,
         [callId, incidentType]
       );
 
@@ -53,8 +35,7 @@ module.exports = async function(req, res) {
 
       const inserted = await client.query(
         `INSERT INTO incidents (call_id, what, when_it_happened, where_it_happened, injured, witnesses, consent_manager, severity, incident_type)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-         RETURNING id`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
         [callId, what, when_it_happened, where_it_happened, injured, witnesses || null, consent_manager, severity, incidentType]
       );
 
@@ -71,41 +52,45 @@ module.exports = async function(req, res) {
     const hrMsg = buildHrMessage(incidentId, severityLabel, type, inc, notify_manager);
     const mgrMsg = buildManagerMessage(incidentId, severityLabel, type, inc);
 
-    // Run SMS, escalation, follow-up all in parallel — await everything before responding
+    const output = { incident_id: incidentId, status: 'logged' };
+
+    // Respond immediately — fire all side effects after
+    res.json(output);
+
     const tasks = [
       sendSms(process.env.HR_PHONE, hrMsg)
-        .then(() => db.logNotification({ incidentId, callId, recipientType: 'hr', phoneNumber: process.env.HR_PHONE, message: hrMsg }))
+        .then(() => db.updateIncidentNotification({ incidentId, recipientType: 'hr' }))
         .catch(e => console.error('[SMS] HR failed:', e.message))
     ];
 
     if (notify_manager && mgrMsg) {
       tasks.push(
         sendSms(process.env.MANAGER_PHONE, mgrMsg)
-          .then(() => db.logNotification({ incidentId, callId, recipientType: 'manager', phoneNumber: process.env.MANAGER_PHONE, message: mgrMsg }))
+          .then(() => db.updateIncidentNotification({ incidentId, recipientType: 'manager' }))
           .catch(e => console.error('[SMS] Manager failed:', e.message))
       );
     }
 
     if (severity === 'high' || severity === 'critical') {
       const escalatedTo = notify_manager ? 'HR + Manager' : 'HR';
-      tasks.push(db.createEscalation({ incidentId, callId, severity, escalatedTo, reason: ESCALATION_REASON[type] || 'High severity incident' }).catch(() => {}));
+      const reason = {
+        safety:        'Physical injury or hazard reported — requires immediate safety review',
+        interpersonal: 'Workplace conflict or harassment — requires confidential HR review',
+        security:      'Security breach or unauthorised access — requires urgent investigation'
+      }[type] || 'High severity incident';
+      tasks.push(db.updateIncidentEscalation({ incidentId, escalatedTo, reason }).catch(() => {}));
     }
 
     if (!(type === 'maintenance' && severity === 'low')) {
-      tasks.push(db.createFollowUp({ incidentId, callId, incidentType: type, severity, assignedTo: ASSIGNED_TO[type] || 'HR' }).catch(() => {}));
+      tasks.push(db.updateIncidentFollowUp({ incidentId, incidentType: type, severity }).catch(() => {}));
     }
-
-    const output = { incident_id: incidentId, status: 'logged' };
 
     tasks.push(
       db.saveIntent({ callId, intent: `incident_report_${type}`, confidence: 1.0, entities: { severity, type, injured_reported: injured !== 'none' && injured !== 'None' } }).catch(() => {}),
       db.saveToolCall({ callId, toolName: 'report_incident', inputParams: req.body, outputResult: output, executionTimeMs: Date.now() - start, success: true }).catch(() => {})
     );
 
-    // Respond immediately so agent can say goodbye without waiting — fire tasks after
-    res.json(output);
     Promise.all(tasks).catch(() => {});
-    return;
 
   } catch (err) {
     console.error('[TOOL] report_incident error:', err.message);

@@ -3,21 +3,29 @@ const db = require('../../lib/db');
 
 async function fetchAndStoreTranscript(callId, uvCallId) {
   if (!uvCallId || uvCallId === 'unknown') return;
-  try {
-    const res = await axios.get(
-      `https://api.ultravox.ai/api/calls/${uvCallId}/messages`,
-      { headers: { 'X-API-Key': (process.env.ULTRAVOX_API_KEY || '').trim() } }
-    );
-    const messages = res.data?.results || res.data || [];
-    for (const msg of messages) {
-      const speaker = msg.role === 'agent' ? 'agent' : 'user';
-      const text = msg.text || msg.content || '';
-      if (text) await db.saveTranscript({ callId, speaker, message: text });
+  const keys = [process.env.ULTRAVOX_API_KEY, process.env.ULTRAVOX_API_KEY_BACKUP].filter(Boolean).map(k => k.trim());
+  let messages = null;
+  for (const apiKey of keys) {
+    try {
+      const res = await axios.get(
+        `https://api.ultravox.ai/api/calls/${uvCallId}/messages`,
+        { headers: { 'X-API-Key': apiKey } }
+      );
+      messages = res.data?.results || res.data || [];
+      break;
+    } catch (e) {
+      if (e.response?.status === 404 || e.response?.status === 401) continue;
+      console.error('[TRANSCRIPT] fetch failed:', e.message);
+      return;
     }
-    console.log(`[TRANSCRIPT] ${callId} — ${messages.length} messages stored`);
-  } catch (e) {
-    console.error('[TRANSCRIPT] fetch failed:', e.message);
   }
+  if (!messages) { console.error('[TRANSCRIPT] not found on any key'); return; }
+  for (const msg of messages) {
+    const speaker = msg.role === 'MESSAGE_ROLE_AGENT' || msg.role === 'agent' ? 'agent' : 'user';
+    const text = msg.text || msg.content || '';
+    if (text) await db.saveTranscript({ callId, speaker, message: text });
+  }
+  console.log(`[TRANSCRIPT] ${callId} — ${messages.length} messages stored`);
 }
 
 async function generateAndStoreSummary(callId) {

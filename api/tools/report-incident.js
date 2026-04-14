@@ -54,7 +54,13 @@ module.exports = async function(req, res) {
 
     const output = { incident_id: incidentId, status: 'logged' };
 
-    // Respond immediately — fire all side effects after
+    // Save intent + tool call log before responding — Vercel kills fire-and-forget after res.json()
+    await Promise.all([
+      db.saveIntent({ callId, intent: `incident_report_${type}`, confidence: 1.0, entities: { severity, type, injured_reported: injured !== 'none' && injured !== 'None' } }).catch(() => {}),
+      db.saveToolCall({ callId, toolName: 'report_incident', inputParams: req.body, outputResult: output, executionTimeMs: Date.now() - start, success: true }).catch(() => {})
+    ]);
+
+    // Respond to Ultravox immediately — SMS and DB side effects fire after
     res.json(output);
 
     const tasks = [
@@ -84,11 +90,6 @@ module.exports = async function(req, res) {
     if (!(type === 'maintenance' && severity === 'low')) {
       tasks.push(db.updateIncidentFollowUp({ incidentId, incidentType: type, severity }).catch(() => {}));
     }
-
-    tasks.push(
-      db.saveIntent({ callId, intent: `incident_report_${type}`, confidence: 1.0, entities: { severity, type, injured_reported: injured !== 'none' && injured !== 'None' } }).catch(() => {}),
-      db.saveToolCall({ callId, toolName: 'report_incident', inputParams: req.body, outputResult: output, executionTimeMs: Date.now() - start, success: true }).catch(() => {})
-    );
 
     Promise.all(tasks).catch(() => {});
 

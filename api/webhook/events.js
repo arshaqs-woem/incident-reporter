@@ -63,8 +63,9 @@ module.exports = async (req, res) => {
       const callLog = await db.getCallLog(callId);
       const uvCallId = callLog?.uv_call_id;
 
-      // Run transcript + summary in parallel — don't block the webhook response
-      Promise.all([
+      // Await both before responding — caller is gone so no UX cost, and Vercel
+      // kills fire-and-forget tasks the moment res.json() is called
+      await Promise.all([
         fetchAndStoreTranscript(callId, uvCallId),
         generateAndStoreSummary(callId)
       ]).catch(() => {});

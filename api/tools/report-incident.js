@@ -49,16 +49,12 @@ module.exports = async function(req, res) {
 
     const output = { incident_id: incidentId, status: 'logged' };
 
-    // Save intent + tool call log before responding — Vercel kills fire-and-forget after res.json()
-    await Promise.all([
-      db.saveIntent({ callId, intent: `incident_report_${type}`, confidence: 1.0, entities: { severity, type, injured_reported: injured !== 'none' && injured !== 'None' } }).catch(() => {}),
-      db.saveToolCall({ callId, toolName: 'report_incident', inputParams: req.body, outputResult: output, executionTimeMs: Date.now() - start, success: true }).catch(() => {})
-    ]);
-
-    // Respond to Ultravox immediately — SMS and DB side effects fire after
+    // Respond to Ultravox immediately — keep tool execution fast to avoid timeout
     res.json(output);
 
     const tasks = [
+      db.saveIntent({ callId, intent: `incident_report_${type}`, confidence: 1.0, entities: { severity, type, injured_reported: injured !== 'none' && injured !== 'None' } }).catch(() => {}),
+      db.saveToolCall({ callId, toolName: 'report_incident', inputParams: req.body, outputResult: output, executionTimeMs: Date.now() - start, success: true }).catch(() => {}),
       sendSms(process.env.HR_PHONE, hrMsg)
         .then(() => db.updateIncidentNotification({ incidentId, recipientType: 'hr' }))
         .catch(e => console.error('[SMS] HR failed:', e.message))

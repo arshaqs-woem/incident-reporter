@@ -8,7 +8,6 @@ async function setup() {
     CREATE TABLE IF NOT EXISTS call_logs (
       id                    SERIAL PRIMARY KEY,
       call_id               TEXT UNIQUE NOT NULL,
-      caller_number         TEXT,
       called_number         TEXT,
       call_start_time       TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       call_end_time         TIMESTAMP WITH TIME ZONE,

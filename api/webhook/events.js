@@ -31,8 +31,7 @@ async function generateAndStoreSummary(callId) {
       await db.saveCallSummary({ callId, summary: 'Call ended without an incident being reported.', primaryIntent: 'no_incident', resolutionStatus: 'no_action', followUpRequired: false });
       return;
     }
-    const followUpRes = await db.query(`SELECT id FROM follow_ups WHERE call_id = $1`, [callId]);
-    const followUpRequired = followUpRes.rows.length > 0;
+    const followUpRequired = !!inc.assigned_to;
     const summary = `${inc.incident_type.charAt(0).toUpperCase() + inc.incident_type.slice(1)} incident (${inc.severity}) reported at ${inc.where_it_happened}. ${inc.what}${inc.injured && inc.injured.toLowerCase() !== 'none' ? ` Injury: ${inc.injured}.` : ''}`;
     await db.saveCallSummary({ callId, summary, primaryIntent: `incident_report_${inc.incident_type}`, resolutionStatus: 'logged', followUpRequired });
     console.log(`[SUMMARY] ${callId} — summary stored`);

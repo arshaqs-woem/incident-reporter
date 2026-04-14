@@ -26,7 +26,7 @@ module.exports = async (req, res) => {
   console.log(`[ULTRAVOX] Session created: ${uvCallId} joinUrl: ${joinUrl} raw:`, JSON.stringify(uvCall).slice(0, 200));
 
   // Await this — Vercel kills the function after res.send so fire-and-forget doesn't work
-  await db.createCallLog({ callId: plivoCallId, callerNumber: null, calledNumber, uvCallId }).catch(e =>
+  await db.createCallLog({ callId: plivoCallId, calledNumber, uvCallId }).catch(e =>
     console.error('[DB] createCallLog failed:', e.message)
   );
 

@@ -8,12 +8,9 @@ Built with Ultravox (voice AI), Plivo (telephony + SMS), Vercel (serverless), an
 
 ## Demo Video
 
-> _Link to be added after recording_
+[![Demo Video](https://cdn.loom.com/sessions/thumbnails/1fa21da29bcd43f292e9e730e6b0ed52-with-play.gif)](https://www.loom.com/share/1fa21da29bcd43f292e9e730e6b0ed52)
 
-Suggested demo flow:
-- Show one clean call from start to finish
-- Show the incident row, transcript rows, summary, tool call, and call log in the database
-- Show `/api/health`, `/api/calls`, and `/api/incidents`
+[Watch on Loom](https://www.loom.com/share/1fa21da29bcd43f292e9e730e6b0ed52)
 - Show the Vercel deployment and deployed URL
 
 ---

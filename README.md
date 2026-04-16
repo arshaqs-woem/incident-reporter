@@ -134,13 +134,52 @@ See [docs/API.md](docs/API.md) for full request/response documentation.
 
 ## Database Screenshots
 
-> _To be added after demo calls_
+### call_logs
+Every inbound call gets a row — recording call ID, start/end timestamps, duration in seconds, and status (`completed` or `abandoned` if no incident was logged).
 
-Recommended screenshots:
-- `call_logs` showing completed and abandoned calls
-- `incidents` showing type, severity, anonymity, and follow-up fields
-- `transcripts` showing user + agent turns for one call
-- `tool_calls` and `call_summaries` for the same call
+![call_logs](docs/screenshots/call_logs.png)
+
+---
+
+### incidents (core fields)
+The primary table. Stores what happened, where, severity level, incident type, and whether the reporter chose to stay anonymous.
+
+![incidents - core fields](docs/screenshots/incidents_1.png)
+
+---
+
+### incidents (escalation & follow-up)
+The same table scrolled right — shows which team was assigned, follow-up status, due date (calculated from severity), and whether the incident was escalated.
+
+![incidents - escalation and follow-up](docs/screenshots/incidents_2.png)
+
+---
+
+### tool_calls
+Every tool the AI invoked is logged here with full input/output JSON, execution time in ms, and success status. All three tools visible: `check_previous_incidents`, `report_incident`, `get_department_contacts`.
+
+![tool_calls](docs/screenshots/tool_calls.png)
+
+---
+
+### detected_intents
+Intent classification logged per call — intent name, confidence score (1.0000 = high confidence), and extracted entities as JSON.
+
+![detected_intents](docs/screenshots/detected_intents.png)
+
+---
+
+### call_summaries
+Ultravox generates a natural language summary after each call. Resolution status (`logged` or `no_action`) and whether follow-up is required are stored here.
+
+![call_summaries](docs/screenshots/call_summaries.png)
+
+---
+
+### transcripts
+Full turn-by-turn conversation stored per call — speaker (`agent` or `user`), message text, and timestamp. Useful for auditing and review.
+
+![transcripts](docs/screenshots/transcripts.png)
 
 ---
 

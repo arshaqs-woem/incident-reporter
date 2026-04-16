@@ -8,10 +8,9 @@ Built with Ultravox (voice AI), Plivo (telephony + SMS), Vercel (serverless), an
 
 ## Demo Video
 
-[![Demo Video](https://cdn.loom.com/sessions/thumbnails/1fa21da29bcd43f292e9e730e6b0ed52-with-play.gif)](https://www.loom.com/share/1fa21da29bcd43f292e9e730e6b0ed52)
+[![Demo Video](https://cdn.loom.com/sessions/thumbnails/a783955605c541fd976fd77b58b4e8ff-with-play.gif)](https://www.loom.com/share/a783955605c541fd976fd77b58b4e8ff)
 
-[Watch on Loom](https://www.loom.com/share/1fa21da29bcd43f292e9e730e6b0ed52)
-- Show the Vercel deployment and deployed URL
+[Watch on Loom](https://www.loom.com/share/a783955605c541fd976fd77b58b4e8ff)
 
 ---
 

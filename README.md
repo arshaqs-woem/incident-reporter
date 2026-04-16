@@ -137,12 +137,16 @@ See [docs/API.md](docs/API.md) for full request/response documentation.
 ### call_logs
 Every inbound call gets a row — recording call ID, start/end timestamps, duration in seconds, and status (`completed` or `abandoned` if no incident was logged).
 
+**Columns:** `id` `call_id` `caller_number` `call_start_time` `call_end_time` `duration_seconds` `call_status` `ultravox_call_id` `created_at`
+
 ![call_logs](docs/screenshots/call_logs.png)
 
 ---
 
 ### incidents (core fields)
 The primary table. Stores what happened, where, severity level, incident type, and whether the reporter chose to stay anonymous.
+
+**Columns:** `id` `call_id` `description` `when_occurred` `location` `witnesses` `hazmat_involved` `resolved` `severity` `incident_type` `notified_parties` `escalation_reason` `assigned_to` `status` `follow_up_date` `incident_date` `is_anonymous` `reported_by` `created_at`
 
 ![incidents - core fields](docs/screenshots/incidents_1.png)
 
@@ -151,12 +155,16 @@ The primary table. Stores what happened, where, severity level, incident type, a
 ### incidents (escalation & follow-up)
 The same table scrolled right — shows which team was assigned, follow-up status, due date (calculated from severity), and whether the incident was escalated.
 
+**Columns:** *(same table as above, continued)* `notified_parties` `escalation_reason` `assigned_to` `status` `follow_up_date` `incident_date` `is_anonymous` `reported_by`
+
 ![incidents - escalation and follow-up](docs/screenshots/incidents_2.png)
 
 ---
 
 ### tool_calls
 Every tool the AI invoked is logged here with full input/output JSON, execution time in ms, and success status. All three tools visible: `check_previous_incidents`, `report_incident`, `get_department_contacts`.
+
+**Columns:** `id` `call_id` `tool_name` `input_params` `output_result` `tokens_used` `success` `created_at`
 
 ![tool_calls](docs/screenshots/tool_calls.png)
 
@@ -165,6 +173,8 @@ Every tool the AI invoked is logged here with full input/output JSON, execution 
 ### detected_intents
 Intent classification logged per call — intent name, confidence score (1.0000 = high confidence), and extracted entities as JSON.
 
+**Columns:** `id` `call_id` `intent_name` `confidence` `parameters` `created_at`
+
 ![detected_intents](docs/screenshots/detected_intents.png)
 
 ---
@@ -172,12 +182,16 @@ Intent classification logged per call — intent name, confidence score (1.0000 
 ### call_summaries
 Ultravox generates a natural language summary after each call. Resolution status (`logged` or `no_action`) and whether follow-up is required are stored here.
 
+**Columns:** `id` `call_id` `summary` `intent_name` `action_taken` `sms_sent` `created_at`
+
 ![call_summaries](docs/screenshots/call_summaries.png)
 
 ---
 
 ### transcripts
 Full turn-by-turn conversation stored per call — speaker (`agent` or `user`), message text, and timestamp. Useful for auditing and review.
+
+**Columns:** `id` `call_id` `speaker` `content` `created_at`
 
 ![transcripts](docs/screenshots/transcripts.png)
 

@@ -13,7 +13,7 @@ module.exports = async (req, res) => {
 
   let uvCall;
   try {
-    uvCall = await createCall();
+    uvCall = await createCall(plivoCallId);
   } catch (err) {
     console.error('[ULTRAVOX] createCall failed:', err.message, err.response?.data);
     const xml = `<?xml version="1.0" encoding="utf-8"?><Response><Speak>Sorry, we are experiencing technical difficulties. Please call back later.</Speak></Response>`;

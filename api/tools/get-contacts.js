@@ -22,12 +22,15 @@ module.exports = async function(req, res) {
     note: 'Notifications will be sent automatically when the incident is logged.'
   };
 
-  const recentCall = await db.query(
-    `SELECT call_id FROM call_logs WHERE call_status = 'in_progress' ORDER BY call_start_time DESC LIMIT 1`
-  ).catch(() => ({ rows: [] }));
-  const callId = recentCall.rows[0]?.call_id || 'unknown';
+  let callId = req.query.callId || req.body.callId;
+  if (!callId) {
+    const recentCall = await db.query(
+      `SELECT call_id FROM call_logs WHERE call_status = 'in_progress' ORDER BY call_start_time DESC LIMIT 1`
+    ).catch(() => ({ rows: [] }));
+    callId = recentCall.rows[0]?.call_id || 'unknown';
+  }
 
-  db.saveToolCall({ callId, toolName: 'get_department_contacts', inputParams: req.body, outputResult: output, executionTimeMs: Date.now() - start, success: true }).catch(() => {});
+  await db.saveToolCall({ callId, toolName: 'get_department_contacts', inputParams: req.body, outputResult: output, executionTimeMs: Date.now() - start, success: true }).catch(() => {});
 
   console.log(`[TOOL] get_department_contacts → ${department}`);
   return res.json(output);

@@ -54,6 +54,12 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for full design decisions.
 
 ---
 
+## Dashboard
+
+The operations dashboard is served from `public/index.html` at the deployment root. It shows call statistics, incidents with severity and SLA due/overdue indicators, follow-ups sorted by deadline, and an incident-type breakdown, refreshing every 30 seconds. The dashboard and the API endpoints it reads are currently unauthenticated — anyone with the deployment URL can view incident data.
+
+---
+
 ## Setup
 
 ### 1. Clone and install
@@ -199,7 +205,7 @@ Full turn-by-turn conversation stored per call — speaker (`agent` or `user`), 
 
 ## Known Limitations
 
-- **Call-to-incident linkage** depends on "most recent active call" — works for sequential demo use but would need a proper fix for concurrent production traffic (Ultravox does not send call ID in HTTP tool headers)
+- **Call-to-incident linkage** uses the Plivo call ID injected into every tool invocation via Ultravox static parameters, so linkage is exact even under concurrent calls.
 - **Transcripts** are fetched from Ultravox after hangup — there is a short delay before they appear in the DB
 - **Transcript storage is raw turn-by-turn data** — good for auditing and analytics, but less readable than a single stitched conversation view
 - **Caller anonymization** is implicit — phone numbers are never stored anywhere in the system
@@ -208,9 +214,7 @@ Full turn-by-turn conversation stored per call — speaker (`agent` or `user`), 
 
 ## Future Improvements
 
-- Web dashboard for HR to view and manage incidents
 - Multi-language support via Ultravox language settings
-- Proper call-ID injection once Ultravox supports it in tool headers
 - Slack/email notifications in addition to SMS
 - Caller callback option for follow-up
 

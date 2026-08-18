@@ -2,3 +2,8 @@
 node_modules/
 .vercel/
 .vercel
+.claude/
+CLAUDE.md
+
+# Local-only evaluation helper — unauthenticated endpoint, not deployed
+api/test-call.js

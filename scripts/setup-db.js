@@ -31,6 +31,9 @@ async function setup() {
       consent_manager     BOOLEAN DEFAULT FALSE,
       severity            VARCHAR(20),
       incident_type       VARCHAR(50),
+      -- reporter
+      anonymous           BOOLEAN DEFAULT TRUE,
+      reporter_name       TEXT,
       -- notifications
       hr_notified_at      TIMESTAMP WITH TIME ZONE,
       manager_notified_at TIMESTAMP WITH TIME ZONE,

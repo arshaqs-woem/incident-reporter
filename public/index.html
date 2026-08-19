@@ -159,6 +159,7 @@ function sevBadge(s) {
 let allIncidents = [];
 let activeFilter = 'all';
 let openDetail = null;
+let adminKey = '';
 
 function matchesFilter(i) {
   const overdue = i.due_by && i.followup_status !== 'resolved' && new Date(i.due_by) < Date.now();
@@ -215,13 +216,15 @@ document.getElementById('filters').addEventListener('click', e => {
 document.getElementById('incidents').addEventListener('click', async e => {
   const btn = e.target.closest('[data-resolve]');
   if (btn) {
+    if (!adminKey) adminKey = prompt('Admin key') || '';
     btn.disabled = true; btn.textContent = 'Resolving…';
     try {
       const r = await fetch(`/api/incidents/${btn.dataset.resolve}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
         body: JSON.stringify({ followup_status: 'resolved' })
       });
+      if (r.status === 401) { adminKey = ''; throw new Error(); }
       if (!r.ok) throw new Error();
       await load();
     } catch { btn.disabled = false; btn.textContent = 'Retry — update failed'; }

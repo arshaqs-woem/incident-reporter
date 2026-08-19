@@ -3,6 +3,10 @@ const db = require('../../lib/db');
 const ALLOWED_STATUSES = ['open', 'in_progress', 'resolved'];
 
 module.exports = async (req, res) => {
+  if (process.env.ADMIN_KEY && req.headers['x-admin-key'] !== process.env.ADMIN_KEY) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+
   if (req.method !== 'PATCH') return res.status(405).end();
 
   const id = parseInt(req.query.id, 10);

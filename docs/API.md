@@ -1,6 +1,6 @@
 # API Reference
 
-Base URL: `https://incident-reporter-xi.vercel.app`
+Base URL: `https://<your-deployment>.vercel.app`
 
 ---
 

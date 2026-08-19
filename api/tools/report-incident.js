@@ -4,10 +4,13 @@ const { buildHrMessage, buildManagerMessage } = require('../../lib/messages');
 
 module.exports = async function(req, res) {
   const start = Date.now();
-  const recentCall = await db.query(
-    `SELECT call_id FROM call_logs WHERE call_status = 'in_progress' ORDER BY call_start_time DESC LIMIT 1`
-  );
-  const callId = recentCall.rows[0]?.call_id || 'unknown';
+  let callId = req.query.callId || req.body.callId;
+  if (!callId) {
+    const recentCall = await db.query(
+      `SELECT call_id FROM call_logs WHERE call_status = 'in_progress' ORDER BY call_start_time DESC LIMIT 1`
+    );
+    callId = recentCall.rows[0]?.call_id || 'unknown';
+  }
   const { what, when_it_happened, where_it_happened, injured, witnesses, consent_manager, severity, incident_type, notify_manager, anonymous, reporter_name } = req.body;
 
   const type = (incident_type || 'maintenance').toLowerCase();
@@ -68,25 +71,29 @@ module.exports = async function(req, res) {
 
     const output = { incident_id: incidentId, status: 'logged' };
 
-    // Respond to Ultravox immediately — keep tool execution fast to avoid timeout
+    // Save DB records before responding — Vercel kills fire-and-forget after res.json()
+    await Promise.all([
+      db.saveIntent({ callId, intent: `incident_report_${type}`, confidence: 1.0, entities: { severity: normalizedSeverity, type, injured_reported: injured !== 'none' && injured !== 'None' } }).catch(() => {}),
+      db.saveToolCall({ callId, toolName: 'report_incident', inputParams: req.body, outputResult: output, executionTimeMs: Date.now() - start, success: true }).catch(() => {})
+    ]);
+
+    // Respond to Ultravox — SMS sends as fire-and-forget (external, slow, non-critical for response)
     res.json(output);
 
-    const tasks = [
-      db.saveIntent({ callId, intent: `incident_report_${type}`, confidence: 1.0, entities: { severity: normalizedSeverity, type, injured_reported: injured !== 'none' && injured !== 'None' } }).catch(() => {}),
-      db.saveToolCall({ callId, toolName: 'report_incident', inputParams: req.body, outputResult: output, executionTimeMs: Date.now() - start, success: true }).catch(() => {}),
+    const smsTasks = [
       sendSms(process.env.HR_PHONE, hrMsg)
         .then(() => db.updateIncidentNotification({ incidentId, recipientType: 'hr' }))
         .catch(e => console.error('[SMS] HR failed:', e.message))
     ];
 
     if (notify_manager && mgrMsg) {
-      tasks.push(
+      smsTasks.push(
         sendSms(process.env.MANAGER_PHONE, mgrMsg)
           .then(() => db.updateIncidentNotification({ incidentId, recipientType: 'manager' }))
           .catch(e => console.error('[SMS] Manager failed:', e.message))
       );
     }
-    Promise.all(tasks).catch(() => {});
+    Promise.all(smsTasks).catch(() => {});
     return;
 
   } catch (err) {

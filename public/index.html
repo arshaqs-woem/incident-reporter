@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Incident Reporter — Operations Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --surface: #ffffff;
+    --ink: #16222e;
+    --ink-soft: #5b6b7a;
+    --line: #e3e8ee;
+    --teal: #0e7c7b;
+    --crit: #c0392b;
+    --high: #d97706;
+    --med:  #b8860b;
+    --low:  #4a7c59;
+    --mono: 'IBM Plex Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    background: var(--bg); color: var(--ink);
+    padding: 28px clamp(16px, 4vw, 48px);
+  }
+  header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+  .sub { color: var(--ink-soft); font-size: 13px; }
+  .live { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--ink-soft); margin-left: auto; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--low); }
+  .dot.err { background: var(--crit); }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 22px 0; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+  .card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); margin-bottom: 6px; }
+  .card .value { font-family: var(--mono); font-size: 26px; font-weight: 500; }
+  .card .hint { font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
+
+  .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  section { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); padding: 12px 16px; border-bottom: 1px solid var(--line); font-weight: 600; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); padding: 8px 12px; border-bottom: 1px solid var(--line); font-weight: 600; }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td.what { max-width: 320px; }
+  .muted { color: var(--ink-soft); font-size: 12px; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #fff; }
+  .badge.critical { background: var(--crit); }
+  .badge.high { background: var(--high); }
+  .badge.medium { background: var(--med); }
+  .badge.low { background: var(--low); }
+  .badge.unknown { background: var(--ink-soft); }
+
+  .sla { font-family: var(--mono); font-size: 12px; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+  .sla.ok { background: #eaf3ee; color: var(--low); }
+  .sla.soon { background: #fdf3e3; color: var(--high); }
+  .sla.overdue { background: #fbeae8; color: var(--crit); font-weight: 600; }
+  .sla.done { background: #eef1f4; color: var(--ink-soft); text-decoration: line-through; }
+
+  .bars { padding: 14px 16px; }
+  .bar-row { display: grid; grid-template-columns: 110px 1fr 34px; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .bar-row .name { font-size: 13px; text-transform: capitalize; }
+  .bar-track { background: var(--bg); border-radius: 4px; height: 14px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--teal); border-radius: 4px; min-width: 2px; transition: width .4s ease; }
+  .bar-row .n { font-family: var(--mono); font-size: 12px; text-align: right; }
+
+  .empty { padding: 24px 16px; color: var(--ink-soft); font-size: 13px; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .chip { border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft);
+    border-radius: 999px; padding: 3px 12px; font-size: 12px; font-family: inherit; cursor: pointer; }
+  .chip:hover { border-color: var(--teal); color: var(--teal); }
+  .chip.active { background: var(--teal); border-color: var(--teal); color: #fff; }
+  .chip:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+  .esc { display: inline-block; margin-left: 6px; font-size: 11px; color: var(--high); font-weight: 700; cursor: help; }
+  tr.inc-row { cursor: pointer; }
+  tr.inc-row:hover td { background: #fafbfc; }
+  tr.detail td { background: #fafbfc; font-size: 12px; color: var(--ink-soft); padding: 10px 16px 12px; }
+  .detail dl { display: grid; grid-template-columns: 130px 1fr; gap: 3px 10px; margin: 0; }
+  .detail dt { font-weight: 600; color: var(--ink); }
+  .detail dd { margin: 0; }
+  .resolve-btn { border: 1px solid var(--low); color: var(--low); background: none; border-radius: 5px;
+    padding: 3px 10px; font-size: 11px; font-family: inherit; cursor: pointer; margin-top: 8px; }
+  .resolve-btn:hover { background: var(--low); color: #fff; }
+  .resolve-btn:disabled { opacity: .5; cursor: default; }
+  .status-chip { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); }
+  footer { margin-top: 18px; font-size: 12px; color: var(--ink-soft); font-family: var(--mono); }
+  @media (prefers-reduced-motion: reduce) { .bar-fill { transition: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Incident Reporter</h1>
+  <span class="sub">Operations dashboard — HR &amp; Facilities</span>
+  <span class="live"><span class="dot" id="dot"></span><span id="last">loading…</span></span>
+</header>
+
+<div class="cards" id="cards">
+  <div class="card"><div class="label">Total calls</div><div class="value" id="c-calls">–</div></div>
+  <div class="card"><div class="label">Avg call duration</div><div class="value" id="c-dur">–</div><div class="hint" id="c-dur-hint"></div></div>
+  <div class="card"><div class="label">Incidents logged</div><div class="value" id="c-inc">–</div></div>
+  <div class="card"><div class="label">Open follow-ups</div><div class="value" id="c-open">–</div><div class="hint" id="c-overdue"></div></div>
+</div>
+
+<div class="grid">
+  <section>
+    <h2>Recent incidents</h2>
+    <div class="filters" id="filters" role="group" aria-label="Filter incidents">
+      <button class="chip active" data-f="all">All</button>
+      <button class="chip" data-f="open">Open</button>
+      <button class="chip" data-f="overdue">Overdue</button>
+      <button class="chip" data-f="resolved">Resolved</button>
+      <button class="chip" data-f="critical">Critical</button>
+      <button class="chip" data-f="high">High</button>
+    </div>
+    <div id="incidents"><div class="empty">Loading incidents…</div></div>
+  </section>
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    <section>
+      <h2>Follow-ups by SLA deadline</h2>
+      <div id="followups"><div class="empty">Loading…</div></div>
+    </section>
+    <section>
+      <h2>Incidents by type</h2>
+      <div class="bars" id="types"><div class="empty">Loading…</div></div>
+    </section>
+  </div>
+</div>
+
+<footer>Auto-refreshes every 30 s · data from /api/analytics · /api/incidents · /api/follow-ups</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function slaChip(dueBy, status) {
+  if (!dueBy) return '<span class="muted">no deadline</span>';
+  if (status === 'resolved') return '<span class="sla done">resolved</span>';
+  const ms = new Date(dueBy) - Date.now();
+  const h = Math.abs(ms) / 3.6e6;
+  const fmt = h < 1 ? Math.round(h * 60) + 'm' : h < 48 ? Math.round(h) + 'h' : Math.round(h / 24) + 'd';
+  if (ms < 0) return `<span class="sla overdue">overdue ${fmt}</span>`;
+  if (h < 4)  return `<span class="sla soon">due in ${fmt}</span>`;
+  return `<span class="sla ok">due in ${fmt}</span>`;
+}
+
+function sevBadge(s) {
+  const k = ['critical','high','medium','low'].includes((s||'').toLowerCase()) ? s.toLowerCase() : 'unknown';
+  return `<span class="badge ${k}">${esc(k)}</span>`;
+}
+
+let allIncidents = [];
+let activeFilter = 'all';
+let openDetail = null;
+let adminKey = '';
+
+function matchesFilter(i) {
+  const overdue = i.due_by && i.followup_status !== 'resolved' && new Date(i.due_by) < Date.now();
+  switch (activeFilter) {
+    case 'open':     return i.followup_status !== 'resolved';
+    case 'overdue':  return overdue;
+    case 'resolved': return i.followup_status === 'resolved';
+    case 'critical': return (i.severity || '').toLowerCase() === 'critical';
+    case 'high':     return (i.severity || '').toLowerCase() === 'high';
+    default:         return true;
+  }
+}
+
+function renderIncidents() {
+  const list = allIncidents.filter(matchesFilter);
+  const rows = list.map(i => {
+    const escBadge = i.escalated ? `<span class="esc" title="Escalated to ${esc(i.escalated_to || 'HR')}">&#9650; ESC</span>` : '';
+    const main = `
+      <tr class="inc-row" data-id="${i.id}" title="Click for details">
+        <td>${sevBadge(i.severity)}${escBadge}</td>
+        <td class="what">${esc(i.what)}<div class="muted">${esc(i.where_it_happened || '')}</div></td>
+        <td><span class="status-chip">${esc(i.incident_type || '')}</span><div class="muted">${esc(i.assigned_to || 'unassigned')}</div></td>
+        <td>${slaChip(i.due_by, i.followup_status)}</td>
+        <td class="mono">${i.created_at ? new Date(i.created_at).toLocaleString() : ''}</td>
+      </tr>`;
+    if (openDetail !== i.id) return main;
+    const canResolve = i.followup_status !== 'resolved';
+    return main + `
+      <tr class="detail"><td colspan="5"><div class="detail">
+        <dl>
+          <dt>Description</dt><dd>${esc(i.what)}</dd>
+          <dt>When</dt><dd>${esc(i.when_it_happened || 'Unknown')}</dd>
+          <dt>Injuries</dt><dd>${esc(i.injured || 'None reported')}</dd>
+          <dt>Witnesses</dt><dd>${esc(i.witnesses || 'None recorded')}</dd>
+          <dt>Reporter</dt><dd>${i.anonymous === false && i.reporter_name ? esc(i.reporter_name) : 'Anonymous'}</dd>
+          <dt>Manager consent</dt><dd>${i.consent_manager ? 'Yes' : 'No'}</dd>
+          <dt>Status</dt><dd>${esc(i.followup_status || 'open')}${i.escalated ? ' — escalated to ' + esc(i.escalated_to || 'HR') : ''}</dd>
+        </dl>
+        ${canResolve ? `<button class="resolve-btn" data-resolve="${i.id}">Mark resolved</button>` : ''}
+      </div></td></tr>`;
+  }).join('');
+  $('incidents').innerHTML = rows
+    ? `<table><thead><tr><th>Severity</th><th>Incident</th><th>Type / owner</th><th>SLA</th><th>Reported</th></tr></thead><tbody>${rows}</tbody></table>`
+    : `<div class="empty">${allIncidents.length ? 'Nothing matches this filter.' : 'No incidents yet. They will appear here as calls come in.'}</div>`;
+}
+
+document.getElementById('filters').addEventListener('click', e => {
+  const chip = e.target.closest('.chip'); if (!chip) return;
+  activeFilter = chip.dataset.f;
+  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c === chip));
+  renderIncidents();
+});
+
+document.getElementById('incidents').addEventListener('click', async e => {
+  const btn = e.target.closest('[data-resolve]');
+  if (btn) {
+    if (!adminKey) adminKey = prompt('Admin key') || '';
+    btn.disabled = true; btn.textContent = 'Resolving…';
+    try {
+      const r = await fetch(`/api/incidents/${btn.dataset.resolve}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ followup_status: 'resolved' })
+      });
+      if (r.status === 401) { adminKey = ''; throw new Error(); }
+      if (!r.ok) throw new Error();
+      await load();
+    } catch { btn.disabled = false; btn.textContent = 'Retry — update failed'; }
+    return;
+  }
+  const row = e.target.closest('.inc-row');
+  if (row) { const id = +row.dataset.id; openDetail = openDetail === id ? null : id; renderIncidents(); }
+});
+
+async function load() {
+  try {
+    const [analytics, incidents, followups] = await Promise.all([
+      fetch('/api/analytics').then(r => r.json()),
+      fetch('/api/incidents?limit=25').then(r => r.json()),
+      fetch('/api/follow-ups').then(r => r.json())
+    ]);
+
+    $('c-calls').textContent = analytics.totalCalls ?? 0;
+    const d = Math.round(analytics.avgDurationSeconds || 0);
+    $('c-dur').textContent = d ? `${Math.floor(d/60)}:${String(d%60).padStart(2,'0')}` : '–';
+    $('c-dur-hint').textContent = d ? 'min:sec per call' : '';
+    $('c-inc').textContent = incidents.total ?? 0;
+
+    const fu = followups.follow_ups || [];
+    const open = fu.filter(f => f.followup_status !== 'resolved');
+    const overdue = open.filter(f => f.due_by && new Date(f.due_by) < Date.now());
+    $('c-open').textContent = open.length;
+    $('c-overdue').textContent = overdue.length ? `${overdue.length} overdue` : 'none overdue';
+    $('c-overdue').style.color = overdue.length ? 'var(--crit)' : '';
+
+    allIncidents = incidents.incidents || [];
+    renderIncidents();
+
+    const fuRows = fu.slice(0, 12).map(f => `
+      <tr>
+        <td>${sevBadge(f.severity)}</td>
+        <td class="what">${esc(f.what)}<div class="muted">${esc(f.assigned_to || '')}</div></td>
+        <td>${slaChip(f.due_by, f.followup_status)}</td>
+      </tr>`).join('');
+    $('followups').innerHTML = fuRows
+      ? `<table><tbody>${fuRows}</tbody></table>`
+      : '<div class="empty">No follow-ups assigned yet.</div>';
+
+    const types = analytics.topIncidentTypes || [];
+    const max = Math.max(1, ...types.map(t => +t.count));
+    $('types').innerHTML = types.length
+      ? types.map(t => `
+        <div class="bar-row">
+          <span class="name">${esc(t.incident_type || 'unclassified')}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${(100*t.count/max).toFixed(1)}%"></div></div>
+          <span class="n">${t.count}</span>
+        </div>`).join('')
+      : '<div class="empty">No incident data yet.</div>';
+
+    $('dot').classList.remove('err');
+    $('last').textContent = 'updated ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    $('dot').classList.add('err');
+    $('last').textContent = 'fetch failed — retrying';
+  }
+}
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>

@@ -6,4 +6,6 @@ node_modules/
 CLAUDE.md
 
 # Local-only evaluation helper — unauthenticated endpoint, not deployed
+# Kept outside api/ so it doesn't count against the serverless function limit
 api/test-call.js
+scratch/

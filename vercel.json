@@ -9,6 +9,7 @@
     { "src": "/api/tools/report-incident",           "dest": "/api/tools/report-incident.js" },
     { "src": "/api/tools/check-previous-incidents",  "dest": "/api/tools/check-previous-incidents.js" },
     { "src": "/api/tools/get-contacts",              "dest": "/api/tools/get-contacts.js" },
+    { "src": "/api/incidents/([^/]+)",        "dest": "/api/incidents/[id].js?id=$1" },
     { "src": "/api/incidents",                 "dest": "/api/incidents.js" },
     { "src": "/api/follow-ups",               "dest": "/api/follow-ups.js" },
     { "src": "/api/analytics",                "dest": "/api/analytics.js" },

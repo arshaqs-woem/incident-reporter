@@ -73,6 +73,23 @@
   .bar-row .n { font-family: var(--mono); font-size: 12px; text-align: right; }
 
   .empty { padding: 24px 16px; color: var(--ink-soft); font-size: 13px; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .chip { border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft);
+    border-radius: 999px; padding: 3px 12px; font-size: 12px; font-family: inherit; cursor: pointer; }
+  .chip:hover { border-color: var(--teal); color: var(--teal); }
+  .chip.active { background: var(--teal); border-color: var(--teal); color: #fff; }
+  .chip:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+  .esc { display: inline-block; margin-left: 6px; font-size: 11px; color: var(--high); font-weight: 700; cursor: help; }
+  tr.inc-row { cursor: pointer; }
+  tr.inc-row:hover td { background: #fafbfc; }
+  tr.detail td { background: #fafbfc; font-size: 12px; color: var(--ink-soft); padding: 10px 16px 12px; }
+  .detail dl { display: grid; grid-template-columns: 130px 1fr; gap: 3px 10px; margin: 0; }
+  .detail dt { font-weight: 600; color: var(--ink); }
+  .detail dd { margin: 0; }
+  .resolve-btn { border: 1px solid var(--low); color: var(--low); background: none; border-radius: 5px;
+    padding: 3px 10px; font-size: 11px; font-family: inherit; cursor: pointer; margin-top: 8px; }
+  .resolve-btn:hover { background: var(--low); color: #fff; }
+  .resolve-btn:disabled { opacity: .5; cursor: default; }
   .status-chip { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); }
   footer { margin-top: 18px; font-size: 12px; color: var(--ink-soft); font-family: var(--mono); }
   @media (prefers-reduced-motion: reduce) { .bar-fill { transition: none; } }
@@ -95,6 +112,14 @@
 <div class="grid">
   <section>
     <h2>Recent incidents</h2>
+    <div class="filters" id="filters" role="group" aria-label="Filter incidents">
+      <button class="chip active" data-f="all">All</button>
+      <button class="chip" data-f="open">Open</button>
+      <button class="chip" data-f="overdue">Overdue</button>
+      <button class="chip" data-f="resolved">Resolved</button>
+      <button class="chip" data-f="critical">Critical</button>
+      <button class="chip" data-f="high">High</button>
+    </div>
     <div id="incidents"><div class="empty">Loading incidents…</div></div>
   </section>
   <div style="display:flex; flex-direction:column; gap:16px;">
@@ -131,6 +156,81 @@ function sevBadge(s) {
   return `<span class="badge ${k}">${esc(k)}</span>`;
 }
 
+let allIncidents = [];
+let activeFilter = 'all';
+let openDetail = null;
+
+function matchesFilter(i) {
+  const overdue = i.due_by && i.followup_status !== 'resolved' && new Date(i.due_by) < Date.now();
+  switch (activeFilter) {
+    case 'open':     return i.followup_status !== 'resolved';
+    case 'overdue':  return overdue;
+    case 'resolved': return i.followup_status === 'resolved';
+    case 'critical': return (i.severity || '').toLowerCase() === 'critical';
+    case 'high':     return (i.severity || '').toLowerCase() === 'high';
+    default:         return true;
+  }
+}
+
+function renderIncidents() {
+  const list = allIncidents.filter(matchesFilter);
+  const rows = list.map(i => {
+    const escBadge = i.escalated ? `<span class="esc" title="Escalated to ${esc(i.escalated_to || 'HR')}">&#9650; ESC</span>` : '';
+    const main = `
+      <tr class="inc-row" data-id="${i.id}" title="Click for details">
+        <td>${sevBadge(i.severity)}${escBadge}</td>
+        <td class="what">${esc(i.what)}<div class="muted">${esc(i.where_it_happened || '')}</div></td>
+        <td><span class="status-chip">${esc(i.incident_type || '')}</span><div class="muted">${esc(i.assigned_to || 'unassigned')}</div></td>
+        <td>${slaChip(i.due_by, i.followup_status)}</td>
+        <td class="mono">${i.created_at ? new Date(i.created_at).toLocaleString() : ''}</td>
+      </tr>`;
+    if (openDetail !== i.id) return main;
+    const canResolve = i.followup_status !== 'resolved';
+    return main + `
+      <tr class="detail"><td colspan="5"><div class="detail">
+        <dl>
+          <dt>Description</dt><dd>${esc(i.what)}</dd>
+          <dt>When</dt><dd>${esc(i.when_it_happened || 'Unknown')}</dd>
+          <dt>Injuries</dt><dd>${esc(i.injured || 'None reported')}</dd>
+          <dt>Witnesses</dt><dd>${esc(i.witnesses || 'None recorded')}</dd>
+          <dt>Reporter</dt><dd>${i.anonymous === false && i.reporter_name ? esc(i.reporter_name) : 'Anonymous'}</dd>
+          <dt>Manager consent</dt><dd>${i.consent_manager ? 'Yes' : 'No'}</dd>
+          <dt>Status</dt><dd>${esc(i.followup_status || 'open')}${i.escalated ? ' — escalated to ' + esc(i.escalated_to || 'HR') : ''}</dd>
+        </dl>
+        ${canResolve ? `<button class="resolve-btn" data-resolve="${i.id}">Mark resolved</button>` : ''}
+      </div></td></tr>`;
+  }).join('');
+  $('incidents').innerHTML = rows
+    ? `<table><thead><tr><th>Severity</th><th>Incident</th><th>Type / owner</th><th>SLA</th><th>Reported</th></tr></thead><tbody>${rows}</tbody></table>`
+    : `<div class="empty">${allIncidents.length ? 'Nothing matches this filter.' : 'No incidents yet. They will appear here as calls come in.'}</div>`;
+}
+
+document.getElementById('filters').addEventListener('click', e => {
+  const chip = e.target.closest('.chip'); if (!chip) return;
+  activeFilter = chip.dataset.f;
+  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c === chip));
+  renderIncidents();
+});
+
+document.getElementById('incidents').addEventListener('click', async e => {
+  const btn = e.target.closest('[data-resolve]');
+  if (btn) {
+    btn.disabled = true; btn.textContent = 'Resolving…';
+    try {
+      const r = await fetch(`/api/incidents/${btn.dataset.resolve}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ followup_status: 'resolved' })
+      });
+      if (!r.ok) throw new Error();
+      await load();
+    } catch { btn.disabled = false; btn.textContent = 'Retry — update failed'; }
+    return;
+  }
+  const row = e.target.closest('.inc-row');
+  if (row) { const id = +row.dataset.id; openDetail = openDetail === id ? null : id; renderIncidents(); }
+});
+
 async function load() {
   try {
     const [analytics, incidents, followups] = await Promise.all([
@@ -152,17 +252,8 @@ async function load() {
     $('c-overdue').textContent = overdue.length ? `${overdue.length} overdue` : 'none overdue';
     $('c-overdue').style.color = overdue.length ? 'var(--crit)' : '';
 
-    const rows = (incidents.incidents || []).map(i => `
-      <tr>
-        <td>${sevBadge(i.severity)}</td>
-        <td class="what">${esc(i.what)}<div class="muted">${esc(i.where_it_happened || '')}</div></td>
-        <td><span class="status-chip">${esc(i.incident_type || '')}</span><div class="muted">${esc(i.assigned_to || 'unassigned')}</div></td>
-        <td>${slaChip(i.due_by, i.followup_status)}</td>
-        <td class="mono">${i.created_at ? new Date(i.created_at).toLocaleString() : ''}</td>
-      </tr>`).join('');
-    $('incidents').innerHTML = rows
-      ? `<table><thead><tr><th>Severity</th><th>Incident</th><th>Type / owner</th><th>SLA</th><th>Reported</th></tr></thead><tbody>${rows}</tbody></table>`
-      : '<div class="empty">No incidents yet. They will appear here as calls come in.</div>';
+    allIncidents = incidents.incidents || [];
+    renderIncidents();
 
     const fuRows = fu.slice(0, 12).map(f => `
       <tr>

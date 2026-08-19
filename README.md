@@ -57,7 +57,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for full design decisions.
 
 ## Dashboard
 
-The operations dashboard is served from `public/index.html` at the deployment root. It shows call statistics, incidents with severity and SLA due/overdue indicators, follow-ups sorted by deadline, and an incident-type breakdown, refreshing every 30 seconds. The dashboard and the API endpoints it reads are currently unauthenticated — anyone with the deployment URL can view incident data.
+The operations dashboard is served from `public/index.html` at the deployment root. It shows call statistics, incidents with severity and SLA due/overdue indicators, follow-ups sorted by deadline, and an incident-type breakdown, refreshing every 30 seconds. Incidents can be filtered by status or severity, expanded in place for the full report detail, and closed out in one click via `PATCH /api/incidents/:id`. The dashboard and the API endpoints it reads are currently unauthenticated — anyone with the deployment URL can view incident data.
 
 ---
 
@@ -131,6 +131,7 @@ Method: POST
 | GET | `/api/calls/:id` | Get call detail |
 | GET | `/api/calls/:id/summary` | Get call summary |
 | GET | `/api/incidents` | List incidents with follow-ups |
+| PATCH | `/api/incidents/:id` | Update an incident's follow-up status |
 | GET | `/api/follow-ups` | List follow-ups |
 | GET | `/api/analytics` | Call and incident analytics |
 | GET | `/api/health` | Health check |
